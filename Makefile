@@ -28,9 +28,14 @@ MVN_COMMAND = mvn
 APB_COMMAND = docker run --rm --privileged -v `pwd`:/mnt -v ${HOME}/.kube:/.kube -v /var/run/docker.sock:/var/run/docker.sock -u `id -u` docker.io/ansibleplaybookbundle/apb
 
 _TEST_PROJECT = myproject
-_REGISTRY_IP = $(shell oc get svc/docker-registry -n default -o yaml | grep 'clusterIP:' | awk '{print $$2}')
-_IMAGE = $(_REGISTRY_IP):5000/$(_TEST_PROJECT)/$(DEV_IMAGE_NAME)
-_APB_IMAGE = $(_REGISTRY_IP):5000/$(_TEST_PROJECT)/$(DEV_APB_IMAGE_NAME)
+# Change the address when testing with standalone OpenShift
+_KUBERNETES_MASTER = https://osemaster.jdg-osoos-zhostasa.osepool.centralci.eng.rdu2.redhat.com:8443
+#_DOCKER_REGISTRY = "$(shell oc get svc/docker-registry -n default -o yaml | grep 'clusterIP:' | awk '{print $$2}'):5000"
+_DOCKER_REGISTRY = $(shell oc get routes -n default | grep docker-registry | awk '{print $$2}')
+_IMAGE = $(_DOCKER_REGISTRY):80/$(_TEST_PROJECT)/$(DEV_IMAGE_NAME)
+_APB_IMAGE = $(_DOCKER_REGISTRY):5000/$(_TEST_PROJECT)/$(DEV_APB_IMAGE_NAME)
+_USERNAME = newadmin
+_PASSWORD = redhat
 # This username and password is hardcoded (and base64 encoded) in the Ansible
 # Service Broker template
 _ANSIBLE_SERVICE_BROKER_USERNAME = admin
@@ -38,12 +43,12 @@ _ANSIBLE_SERVICE_BROKER_PASSWORD = admin
 
 start-openshift-with-catalog:
 	@echo "---- Starting OpenShift ----"
-	oc cluster up --service-catalog
+	oc cluster up --service-catalog --loglevel=5
 
 	@echo "---- Granting admin rights to Developer ----"
 	oc login -u system:admin
-	oc adm policy add-cluster-role-to-user cluster-admin developer
-	oc login -u developer -p developer
+	oc adm policy add-cluster-role-to-user cluster-admin $(_USERNAME)
+	oc login -u $(_USERNAME) -p $(_PASSWORD)
 
 	@echo "---- Switching to test project ----"
 	oc project $(_TEST_PROJECT)
@@ -51,6 +56,28 @@ start-openshift-with-catalog:
 
 start-openshift-with-catalog-and-ansible-service-broker: start-openshift-with-catalog install-ansible-service-broker
 .PHONY: start-openshift-with-catalog-and-ansible-service-broker
+
+prepare-standalone-openshift: clean-standalone-openshift
+	@echo "---- Create main project for test purposes"
+	oc new-project $(_TEST_PROJECT)
+
+	@echo "---- Switching to test project ----"
+	oc project $(_TEST_PROJECT)
+.PHONY: prepare-standalone-openshift
+
+clean-standalone-openshift:
+	@echo "---- Login ----"
+	oc login $(_KUBERNETES_MASTER) -u $(_USERNAME) -p $(_PASSWORD)
+
+	@echo "---- Deleting projects ----"
+	oc delete project $(_TEST_PROJECT) || true
+	( \
+		while oc get projects | grep -e $(_TEST_PROJECT) -e $(_TEST_HELPER_PROJECT) > /dev/null; do \
+			echo "Waiting for deleted projects..."; \
+			sleep 5; \
+		done; \
+	)
+.PHONY: clean-standalone-openshift
 
 install-ansible-service-broker:
 	@echo "---- Installing Ansible Service Broker ----"
@@ -87,13 +114,13 @@ _login_to_openshift:
 			echo "Waiting for Docker Registry..."; \
 		done; \
 	)
-	sudo docker login -u $(shell oc whoami) -p $(shell oc whoami -t) $(_REGISTRY_IP):5000
+	sudo docker login -u $(shell oc whoami) -p $(shell oc whoami -t) $(_DOCKER_REGISTRY):80
 .PHONY: _login_to_openshift
 
 _add_openshift_push_permissions:
-	oc adm policy add-role-to-user system:registry developer || true
-	oc adm policy add-role-to-user admin developer -n ${_TEST_PROJECT} || true
-	oc adm policy add-role-to-user system:image-builder developer || true
+	oc adm policy add-role-to-user system:registry $(_USERNAME) || true
+	oc adm policy add-role-to-user admin $(_USERNAME) -n ${_TEST_PROJECT} || true
+	oc adm policy add-role-to-user system:image-builder $(_USERNAME) || true
 .PHONY: _add_openshift_push_permissions
 
 push-image-to-local-openshift: _add_openshift_push_permissions _login_to_openshift
