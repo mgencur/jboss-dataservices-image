@@ -29,7 +29,7 @@ APB_COMMAND = docker run --rm --privileged -v `pwd`:/mnt -v ${HOME}/.kube:/.kube
 
 _TEST_PROJECT = myproject
 # Change the address when testing with standalone OpenShift
-_KUBERNETES_MASTER = https://osemaster.jdg-osoos-zhostasa.osepool.centralci.eng.rdu2.redhat.com:8443
+_KUBERNETES_MASTER = https://osemaster.jdg-osoos-mgencur.osepool.centralci.eng.rdu2.redhat.com:8443
 #_DOCKER_REGISTRY = "$(shell oc get svc/docker-registry -n default -o yaml | grep 'clusterIP:' | awk '{print $$2}'):5000"
 _DOCKER_REGISTRY = $(shell oc get routes -n default | grep docker-registry | awk '{print $$2}')
 _IMAGE = $(_DOCKER_REGISTRY):80/$(_TEST_PROJECT)/$(DEV_IMAGE_NAME)
@@ -72,7 +72,7 @@ clean-standalone-openshift:
 	@echo "---- Deleting projects ----"
 	oc delete project $(_TEST_PROJECT) || true
 	( \
-		while oc get projects | grep -e $(_TEST_PROJECT) -e $(_TEST_HELPER_PROJECT) > /dev/null; do \
+		while oc get projects | grep -e $(_TEST_PROJECT) > /dev/null; do \
 			echo "Waiting for deleted projects..."; \
 			sleep 5; \
 		done; \
