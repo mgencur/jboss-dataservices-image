@@ -129,7 +129,7 @@ push-image-to-local-openshift: _add_openshift_push_permissions _login_to_openshi
 .PHONY: push-image-to-local-openshift
 
 test-functional:
-	$(MVN_COMMAND) -Dimage=$(_IMAGE) -Dkubernetes.auth.token=$(shell oc whoami -t) -DDOCKER_REGISTRY_REDHAT=$(DOCKER_REGISTRY_REDHAT) clean test -f functional-tests/pom.xml
+	$(MVN_COMMAND) -Dimage=docker-registry.engineering.redhat.com/jboss-dataservices/datagrid-online-services -Dkubernetes.auth.token=$(shell oc whoami -t) -DDOCKER_REGISTRY_REDHAT=$(DOCKER_REGISTRY_REDHAT) clean test -f functional-tests/pom.xml
 .PHONY: test-functional
 
 test-unit:
@@ -161,7 +161,8 @@ clear-templates:
 .PHONY: clear-templates
 
 test-caching-service-manually:
-	oc process caching-service -p NAMESPACE=$(shell oc project -q) -p APPLICATION_USER=test -p APPLICATION_USER_PASSWORD=test -p IMAGE=$(_IMAGE) | oc create -f -
+   oc set image-lookup datagrid-online-services-dev
+	oc process caching-service -p NAMESPACE=$(shell oc project -q) -p APPLICATION_USER=test -p APPLICATION_USER_PASSWORD=test -p IMAGE=datagrid-online-services-dev:latest | oc create -f -
 	oc expose svc/caching-service-app-http || true
 	oc expose svc/caching-service-app-hotrod || true
 	oc expose svc/caching-service-app-memcached || true
