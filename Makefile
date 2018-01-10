@@ -29,7 +29,7 @@ APB_COMMAND = docker run --rm --privileged -v `pwd`:/mnt -v ${HOME}/.kube:/.kube
 
 _TEST_PROJECT = myproject
 # Change the address when testing with standalone OpenShift
-_KUBERNETES_MASTER = https://osemaster.jdg-osoos-zhostasa.osepool.centralci.eng.rdu2.redhat.com:8443/console/
+_KUBERNETES_MASTER = https://osemaster.jdg-osoos-zhostasa.osepool.centralci.eng.rdu2.redhat.com:8443
 #_DOCKER_REGISTRY = "$(shell oc get svc/docker-registry -n default -o yaml | grep 'clusterIP:' | awk '{print $$2}'):5000"
 _DOCKER_REGISTRY = $(shell oc get routes -n default | grep docker-registry | awk '{print $$2}')
 _IMAGE = $(_DOCKER_REGISTRY):80/$(_TEST_PROJECT)/$(DEV_IMAGE_NAME)
